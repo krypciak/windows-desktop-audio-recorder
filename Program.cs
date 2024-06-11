@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using CommandLine;
 using CommandLine.Text;
 using NAudio.CoreAudioApi;
@@ -38,6 +39,22 @@ namespace DesktopAudioRecorder
             Console.WriteLine(helpText);
         }
 
+        [DllImport("Kernel32")]
+        private static extern bool SetConsoleCtrlHandler(EventHandler handler, bool add);
+
+        private delegate bool EventHandler(CtrlType sig);
+        static EventHandler _handler;
+
+        enum CtrlType
+        {
+            CTRL_C_EVENT = 0,
+            CTRL_BREAK_EVENT = 1,
+            CTRL_CLOSE_EVENT = 2,
+            CTRL_LOGOFF_EVENT = 5,
+            CTRL_SHUTDOWN_EVENT = 6
+        }
+
+
         static private WasapiOut PlaySilence(WaveFormat format)
         {
             /* Play silence to fix WasapiLoopbackCapture not capturing silence */
@@ -63,9 +80,13 @@ namespace DesktopAudioRecorder
 
             capture.DataAvailable += (s, a) => audioWriter.Write(a.Buffer, 0, a.BytesRecorded);
 
+            var isRecording = true;
+            DateTime startDate = DateTime.Now;
+
             MediaFoundationApi.Startup();
             capture.RecordingStopped += (s, a) =>
             {
+                Console.WriteLine("Time: " + (DateTime.Now - startDate));
                 capture.Dispose();
                 audioWriter.Flush();
                 audioStream.Flush();
@@ -82,19 +103,22 @@ namespace DesktopAudioRecorder
                 audioWriter.Dispose();
                 audioStream.Dispose();
                 wasapiOut.Dispose();
+                isRecording = false;
             };
 
-            AppDomain.CurrentDomain.ProcessExit += new EventHandler((sender, e) =>
+            _handler += new EventHandler((CtrlType sig) =>
             {
                 capture.StopRecording();
+                return true;
             });
+            SetConsoleCtrlHandler(_handler, true);
 
             capture.StartRecording();
 
             Console.WriteLine("Started recording");
 
-            DateTime? targetDate = o.Time != null ? DateTime.Now.AddSeconds((double)o.Time) : null;
-            while (capture.CaptureState != NAudio.CoreAudioApi.CaptureState.Stopped)
+            DateTime? targetDate = o.Time != null ? startDate.AddSeconds((double)o.Time) : null;
+            while (isRecording && capture.CaptureState != NAudio.CoreAudioApi.CaptureState.Stopped)
             {
                 Thread.Sleep(100);
                 if (targetDate != null && DateTime.Now >= targetDate) { capture.StopRecording(); }
