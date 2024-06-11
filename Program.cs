@@ -43,7 +43,7 @@ namespace DesktopAudioRecorder
         private static extern bool SetConsoleCtrlHandler(EventHandler handler, bool add);
 
         private delegate bool EventHandler(CtrlType sig);
-        static EventHandler _handler;
+        static EventHandler? _handler;
 
         enum CtrlType
         {
@@ -82,6 +82,7 @@ namespace DesktopAudioRecorder
 
             var isRecording = true;
             DateTime startDate = DateTime.Now;
+            var stoppedOnce = false;
 
             MediaFoundationApi.Startup();
             capture.RecordingStopped += (s, a) =>
@@ -108,7 +109,11 @@ namespace DesktopAudioRecorder
 
             _handler += new EventHandler((CtrlType sig) =>
             {
-                capture.StopRecording();
+                if (!stoppedOnce)
+                {
+                    stoppedOnce = true;
+                    capture.StopRecording();
+                }
                 return true;
             });
             SetConsoleCtrlHandler(_handler, true);
@@ -118,10 +123,15 @@ namespace DesktopAudioRecorder
             Console.WriteLine("Started recording");
 
             DateTime? targetDate = o.Time != null ? startDate.AddSeconds((double)o.Time) : null;
-            while (isRecording && capture.CaptureState != NAudio.CoreAudioApi.CaptureState.Stopped)
+            while (isRecording)
             {
-                Thread.Sleep(100);
-                if (targetDate != null && DateTime.Now >= targetDate) { capture.StopRecording(); }
+                Thread.Sleep(10);
+                if (targetDate != null && !stoppedOnce && DateTime.Now >= targetDate)
+                {
+                    Console.WriteLine("calling stop");
+                    stoppedOnce = true;
+                    capture.StopRecording();
+                }
             }
         }
     }
