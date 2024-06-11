@@ -27,14 +27,14 @@ namespace DesktopAudioRecorder
               .WithParsed<Options>(options => Run(options))
               .WithNotParsed(errs => DisplayHelp(parserResult, errs));
         }
-        static void DisplayHelp<T>(ParserResult<T> result, IEnumerable<CommandLine.Error> errs)
+        static void DisplayHelp<T>(ParserResult<T> result, IEnumerable<Error> errs)
         {
-            var helpText = HelpText.AutoBuild(result, h =>
-            {
-                h.AdditionalNewLineAfterOption = false;
-                h.Copyright = "";
-                return HelpText.DefaultParsingErrorsHandler(result, h);
-            }, e => e);
+            HelpText helpText = HelpText.AutoBuild(result, h =>
+                {
+                    h.AdditionalNewLineAfterOption = false;
+                    h.AutoVersion = false;
+                    return HelpText.DefaultParsingErrorsHandler(result, h);
+                }, e => e);
             Console.WriteLine(helpText);
         }
 

@@ -2,6 +2,12 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+
+    <Version>1.0.0</Version>
+    <AssemblyTitle>Windows desktop audio recorder</AssemblyTitle>
+    <Copyright>GPLv3</Copyright>
+    <Authors>krypek</Authors>
+
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>windows_desktop_audio_recorder</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
