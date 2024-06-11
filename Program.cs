@@ -1,4 +1,5 @@
-﻿using CommandLine;
+﻿using System.Diagnostics.CodeAnalysis;
+using CommandLine;
 using CommandLine.Text;
 using NAudio.CoreAudioApi;
 using NAudio.MediaFoundation;
@@ -12,8 +13,12 @@ namespace DesktopAudioRecorder
         {
             [Option('o', "output", Required = true, HelpText = "Output audio file path")]
             public required string Output { get; set; }
+
+            [Option('t', "time", Required = false, HelpText = "Recording length in seconds")]
+            public int? Time { get; set; }
         }
 
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(Options))]
         static void Main(string[] args)
         {
             var parser = new CommandLine.Parser(with => with.HelpWriter = null);
@@ -62,15 +67,17 @@ namespace DesktopAudioRecorder
             capture.RecordingStopped += (s, a) =>
             {
                 capture.Dispose();
-                capture = null;
                 audioWriter.Flush();
                 audioStream.Flush();
                 audioStream.Position = 0;
 
+                Console.WriteLine("Encoding to mp3...");
                 using (var reader = new WaveFileReader(audioStream))
                 {
                     MediaFoundationEncoder.EncodeToMp3(reader, path);
                 }
+                Console.WriteLine("Output file:");
+                Console.WriteLine(path);
 
                 audioWriter.Dispose();
                 audioStream.Dispose();
@@ -79,7 +86,6 @@ namespace DesktopAudioRecorder
 
             AppDomain.CurrentDomain.ProcessExit += new EventHandler((sender, e) =>
             {
-                Console.WriteLine("Exiting...");
                 capture.StopRecording();
             });
 
@@ -87,9 +93,11 @@ namespace DesktopAudioRecorder
 
             Console.WriteLine("Started recording");
 
+            DateTime? targetDate = o.Time != null ? DateTime.Now.AddSeconds((double)o.Time) : null;
             while (capture.CaptureState != NAudio.CoreAudioApi.CaptureState.Stopped)
             {
-                Thread.Sleep(500);
+                Thread.Sleep(100);
+                if (targetDate != null && DateTime.Now >= targetDate) { capture.StopRecording(); }
             }
         }
     }
